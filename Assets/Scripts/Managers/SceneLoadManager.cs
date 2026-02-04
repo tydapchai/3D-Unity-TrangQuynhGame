@@ -1,29 +1,20 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
-using System;
 
-/// <summary>
-/// Quản lý loading/unloading scenes theo cấu trúc chapter
-/// </summary>
 public class SceneLoadManager : MonoBehaviour
 {
     public static SceneLoadManager Instance { get; private set; }
-    
-    private string[] currentChapterScenes = new string[3];
-    private bool isLoading = false;
-    
-    // Events
-    public Action OnLoadingStarted;
-    public Action OnLoadingCompleted;
-    
-    private void Awake()
+
+    private int currentLoadedChapter = -1;
+
+    void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log($"[SceneLoadManager] Initialized");
+            Debug.Log("[SceneLoadManager] Initialized");
         }
         else
         {
@@ -31,122 +22,94 @@ public class SceneLoadManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Load chapter với 3 scenes
-    /// </summary>
-    public void LoadChapter(int chapterNumber)
+    public IEnumerator LoadChapter(int chapterNumber)
     {
-        if (isLoading)
+        if (currentLoadedChapter != -1)
         {
-            Debug.LogWarning("[SceneLoadManager] Already loading");
-            return;
+            yield return UnloadChapter(currentLoadedChapter);
         }
-        
-        StartCoroutine(LoadChapterCoroutine(chapterNumber));
-    }
 
-    private IEnumerator LoadChapterCoroutine(int chapterNumber)
-    {
-        isLoading = true;
-        OnLoadingStarted?.Invoke();
-        
-        // Unload chapter cũ
-        if (!string.IsNullOrEmpty(currentChapterScenes[0]))
+        string envScene = $"Chap{chapterNumber:D2}_Environment";
+        string gameScene = $"Chap{chapterNumber:D2}_Gameplay";
+        string lightScene = $"Chap{chapterNumber:D2}_Lighting";
+
+        yield return LoadSceneAdditive(envScene);
+        yield return LoadSceneAdditive(gameScene);
+        yield return LoadSceneAdditive(lightScene);
+
+        currentLoadedChapter = chapterNumber;
+
+        // Hide loading screen
+        HideLoadingScreen();
+
+        // Find all MonoBehaviours implementing IChapterSetup
+        MonoBehaviour[] allObjects = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+        foreach (var obj in allObjects)
         {
-            yield return UnloadChapterScenes();
+            if (obj is IChapterSetup setupObject)
+            {
+                setupObject.OnChapterSetup(chapterNumber);
+            }
         }
-        
-        // Tạo scene names
-        string chapName = $"Chap{chapterNumber:D2}";
-        string[] scenesToLoad = new string[3]
-        {
-            $"{chapName}_Environment",
-            $"{chapName}_Gameplay",
-            $"{chapName}_Lighting"
-        };
-        
-        // Load 3 scenes additively
-        for (int i = 0; i < scenesToLoad.Length; i++)
-        {
-            yield return LoadSceneAsync(scenesToLoad[i], LoadSceneMode.Additive);
-            currentChapterScenes[i] = scenesToLoad[i];
-        }
-        
-        // Setup camera & player spawn
-        yield return new WaitForEndOfFrame();
-        SetupChapter(chapterNumber);
-        
-        isLoading = false;
-        OnLoadingCompleted?.Invoke();
-        
+
         Debug.Log($"[SceneLoadManager] Chapter {chapterNumber} fully loaded");
     }
 
-    private IEnumerator UnloadChapterScenes()
+    private void HideLoadingScreen()
     {
-        Debug.Log("[SceneLoadManager] Unloading previous chapter...");
-        
-        foreach (string sceneName in currentChapterScenes)
+        // Find and hide loading screen canvas
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        foreach (var canvas in canvases)
         {
-            if (!string.IsNullOrEmpty(sceneName))
+            if (canvas.name.Contains("Loading") || canvas.name.Contains("loading"))
             {
-                yield return SceneManager.UnloadSceneAsync(sceneName);
+                canvas.gameObject.SetActive(false);
+                Debug.Log("[SceneLoadManager] Loading screen hidden");
+                return;
             }
         }
-        
-        System.Array.Clear(currentChapterScenes, 0, currentChapterScenes.Length);
-    }
 
-    private IEnumerator LoadSceneAsync(string sceneName, LoadSceneMode mode)
-    {
-        Debug.Log($"[SceneLoadManager] Loading {sceneName}...");
-        
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, mode);
-        
-        // Có thể show loading bar ở đây
-        while (!asyncLoad.isDone)
+        // If not found by name, try to find any canvas with LoadingScreen panel
+        foreach (var canvas in canvases)
         {
-            // Progress: asyncLoad.progress (0.0 - 0.9)
-            yield return null;
-        }
-        
-        Debug.Log($"[SceneLoadManager] {sceneName} loaded");
-    }
-
-    private void SetupChapter(int chapterNumber)
-    {
-        // Tìm player spawn point
-        GameObject spawnPoint = GameObject.FindGameObjectWithTag("PlayerSpawn");
-        if (spawnPoint != null)
-        {
-            Player player = UnityEngine.Object.FindFirstObjectByType<Player>();
-            if (player != null)
+            Transform loadingPanel = canvas.transform.Find("LoadingScreen");
+            if (loadingPanel != null)
             {
-                player.transform.position = spawnPoint.transform.position;
-                player.transform.rotation = spawnPoint.transform.rotation;
-                Debug.Log($"[SceneLoadManager] Player spawned at {spawnPoint.name}");
-            }
-        }
-        
-        // Trigger chapter-specific setup
-        MonoBehaviour[] allObjects = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
-        foreach (var obj in allObjects)
-        {
-            if (obj is IChapterSetup setup)
-            {
-                setup.OnChapterSetup(chapterNumber);
+                loadingPanel.gameObject.SetActive(false);
+                Debug.Log("[SceneLoadManager] Loading panel hidden");
+                return;
             }
         }
     }
 
-    public bool IsLoading() => isLoading;
-    
-    public string[] GetCurrentChapterScenes() => currentChapterScenes;
+    private IEnumerator LoadSceneAdditive(string sceneName)
+    {
+        AsyncOperation op = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+        yield return new WaitUntil(() => op.isDone);
+        Debug.Log($"[SceneLoadManager] Scene '{sceneName}' loaded additive");
+    }
+
+    private IEnumerator UnloadChapter(int chapterNumber)
+    {
+        string envScene = $"Chap{chapterNumber:D2}_Environment";
+        string gameScene = $"Chap{chapterNumber:D2}_Gameplay";
+        string lightScene = $"Chap{chapterNumber:D2}_Lighting";
+
+        yield return UnloadSceneAdditive(envScene);
+        yield return UnloadSceneAdditive(gameScene);
+        yield return UnloadSceneAdditive(lightScene);
+
+        Debug.Log($"[SceneLoadManager] Chapter {chapterNumber} unloaded");
+    }
+
+    private IEnumerator UnloadSceneAdditive(string sceneName)
+    {
+        AsyncOperation op = SceneManager.UnloadSceneAsync(sceneName);
+        yield return new WaitUntil(() => op.isDone);
+        Debug.Log($"[SceneLoadManager] Scene '{sceneName}' unloaded");
+    }
 }
 
-/// <summary>
-/// Interface cho các objects cần setup khi chapter load
-/// </summary>
 public interface IChapterSetup
 {
     void OnChapterSetup(int chapterNumber);

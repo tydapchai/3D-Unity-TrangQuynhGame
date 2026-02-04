@@ -1,79 +1,48 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 
-/// <summary>
-/// Debug Helper - Test scene loading với keyboard shortcuts
-/// </summary>
 public class SceneDebugger : MonoBehaviour
 {
-    private void Update()
+    void Update()
     {
-        // Phím 1-5 để load chapters
-        for (int i = 1; i <= 5; i++)
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha0 + i))
-            {
-                Debug.Log($"[SceneDebugger] Loading Chapter {i}");
-                GameManager.Instance.LoadChapter(i);
-            }
-        }
-        
-        // Phím N để chapter tiếp theo
-        if (Input.GetKeyDown(KeyCode.N))
-        {
-            Debug.Log("[SceneDebugger] Loading next chapter");
+        // Load chapters 1-5
+        if (Keyboard.current.digit1Key.wasPressedThisFrame)
+            GameManager.Instance.LoadChapter(1);
+
+        if (Keyboard.current.digit2Key.wasPressedThisFrame)
+            GameManager.Instance.LoadChapter(2);
+
+        if (Keyboard.current.digit3Key.wasPressedThisFrame)
+            GameManager.Instance.LoadChapter(3);
+
+        if (Keyboard.current.digit4Key.wasPressedThisFrame)
+            GameManager.Instance.LoadChapter(4);
+
+        if (Keyboard.current.digit5Key.wasPressedThisFrame)
+            GameManager.Instance.LoadChapter(5);
+
+        // Next chapter
+        if (Keyboard.current.nKey.wasPressedThisFrame)
             GameManager.Instance.NextChapter();
-        }
-        
-        // Phím R để restart
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            Debug.Log("[SceneDebugger] Restarting chapter");
+
+        // Restart chapter
+        if (Keyboard.current.rKey.wasPressedThisFrame)
             GameManager.Instance.RestartChapter();
-        }
-        
-        // Phím ESC để pause
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
+
+        // Toggle pause
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
             GameManager.Instance.TogglePause();
-        }
-        
-        // Phím S để save
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            Debug.Log("[SceneDebugger] Saving game");
+
+        // Save game
+        if (Keyboard.current.sKey.wasPressedThisFrame)
             SaveManager.Instance.SaveGame();
-        }
-        
-        // Phím L để load
-        if (Input.GetKeyDown(KeyCode.L))
-        {
-            Debug.Log("[SceneDebugger] Loading game");
+
+        // Load game
+        if (Keyboard.current.lKey.wasPressedThisFrame)
             SaveManager.Instance.LoadGame();
-        }
-        
-        // Phím D để show debug info
-        if (Input.GetKeyDown(KeyCode.D))
-        {
-            ShowDebugInfo();
-        }
-    }
-    
-    private void ShowDebugInfo()
-    {
-        Debug.Log($"\n========== DEBUG INFO ==========");
-        Debug.Log($"Current Chapter: {GameManager.Instance.GetCurrentChapter()}");
-        Debug.Log($"Is Paused: {GameManager.Instance.IsPaused()}");
-        Debug.Log($"Scene Loading: {SceneLoadManager.Instance.IsLoading()}");
-        
-        string[] scenes = SceneLoadManager.Instance.GetCurrentChapterScenes();
-        Debug.Log($"Loaded Scenes:");
-        foreach (string scene in scenes)
-        {
-            Debug.Log($"  - {scene}");
-        }
-        
-        Debug.Log($"Played Time: {SaveManager.Instance.GetPlayedTime()}s");
-        Debug.Log($"================================\n");
+
+        // Debug info
+        if (Keyboard.current.dKey.wasPressedThisFrame)
+            Debug.Log($"Chapter: {GameManager.Instance.CurrentChapter}, Paused: {GameManager.Instance.IsPaused}");
     }
 }

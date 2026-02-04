@@ -1,113 +1,64 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System;
 
-/// <summary>
-/// Quản lý trạng thái game, chapter hiện tại, save/load
-/// </summary>
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
-    
-    [SerializeField] private int currentChapter = 1;
-    [SerializeField] private int maxChapters = 5;
-    
-    // Events
-    public static Action<int> OnChapterLoaded;
-    public static Action<int> OnChapterUnloaded;
-    public static Action OnGamePaused;
-    public static Action OnGameResumed;
-    
-    private bool isPaused = false;
 
-    private void Awake()
+    public int CurrentChapter { get; private set; } = 1;
+    public bool IsPaused { get; private set; } = false;
+
+    public static event Action<int> OnChapterLoaded;
+    public static event Action OnGamePaused;
+    public static event Action OnGameResumed;
+
+    void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log($"[GameManager] Initialized");
+            Debug.Log("[GameManager] Initialized");
         }
         else
         {
-            Debug.LogWarning($"[GameManager] Duplicate instance destroyed");
             Destroy(gameObject);
         }
     }
 
-    private void Start()
-    {
-        // Load lần đầu
-        LoadChapter(currentChapter);
-    }
-
-    private void Update()
-    {
-        // Ví dụ: Pause game với ESC
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            TogglePause();
-        }
-    }
-
-    /// <summary>
-    /// Load một chapter cụ thể
-    /// </summary>
     public void LoadChapter(int chapterNumber)
     {
-        if (chapterNumber < 1 || chapterNumber > maxChapters)
-        {
-            Debug.LogError($"[GameManager] Invalid chapter: {chapterNumber}");
-            return;
-        }
-
-        currentChapter = chapterNumber;
-        SceneLoadManager.Instance.LoadChapter(chapterNumber);
+        CurrentChapter = chapterNumber;
+        Debug.Log($"[GameManager] Loading Chapter {chapterNumber}");
+        StartCoroutine(SceneLoadManager.Instance.LoadChapter(chapterNumber));
         OnChapterLoaded?.Invoke(chapterNumber);
-        
-        Debug.Log($"[GameManager] Loaded chapter {chapterNumber}");
     }
 
-    /// <summary>
-    /// Chuyển đến chapter tiếp theo
-    /// </summary>
     public void NextChapter()
     {
-        if (currentChapter < maxChapters)
-        {
-            LoadChapter(currentChapter + 1);
-        }
-        else
-        {
-            Debug.Log($"[GameManager] Game completed!");
-            // TODO: Show ending screen
-        }
+        LoadChapter(CurrentChapter + 1);
     }
 
-    /// <summary>
-    /// Restart chapter hiện tại
-    /// </summary>
     public void RestartChapter()
     {
-        LoadChapter(currentChapter);
+        LoadChapter(CurrentChapter);
     }
 
-    /// <summary>
-    /// Toggle pause
-    /// </summary>
     public void TogglePause()
     {
-        isPaused = !isPaused;
-        Time.timeScale = isPaused ? 0f : 1f;
-        
-        if (isPaused)
-            OnGamePaused?.Invoke();
-        else
-            OnGameResumed?.Invoke();
-        
-        Debug.Log($"[GameManager] Game {(isPaused ? "paused" : "resumed")}");
-    }
+        IsPaused = !IsPaused;
+        Time.timeScale = IsPaused ? 0f : 1f;
 
-    public int GetCurrentChapter() => currentChapter;
-    public bool IsPaused() => isPaused;
-    public int GetMaxChapters() => maxChapters;
+        if (IsPaused)
+        {
+            OnGamePaused?.Invoke();
+            Debug.Log("[GameManager] Game Paused");
+        }
+        else
+        {
+            OnGameResumed?.Invoke();
+            Debug.Log("[GameManager] Game Resumed");
+        }
+    }
 }

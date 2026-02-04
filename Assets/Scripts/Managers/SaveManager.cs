@@ -1,36 +1,29 @@
 using UnityEngine;
-using System.Collections.Generic;
+using System.IO;
 
-/// <summary>
-/// Save Manager - Quản lý save/load game
-/// </summary>
 [System.Serializable]
 public class SaveData
 {
     public int currentChapter = 1;
-    public int playedTime = 0; // seconds
-    public int playerLevel = 1;
-    public float playerHP = 100f;
-    public List<string> unlockedItems = new List<string>();
-    public bool[] completedChapters = new bool[5];
+    public bool[] completedChapters = new bool[6];
 }
 
 public class SaveManager : MonoBehaviour
 {
     public static SaveManager Instance { get; private set; }
-    
-    private SaveData currentSave;
-    private string savePath;
-    
-    private const string SAVE_FILE = "gamesave.json";
 
-    private void Awake()
+    private SaveData saveData;
+    private string savePath;
+
+    void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log($"[SaveManager] Initialized");
+
+            savePath = Application.persistentDataPath + "/savegame.json";
+            LoadGame();
         }
         else
         {
@@ -38,91 +31,42 @@ public class SaveManager : MonoBehaviour
         }
     }
 
-    private void Start()
+    public void SaveGame()
     {
-        savePath = System.IO.Path.Combine(Application.persistentDataPath, SAVE_FILE);
-        LoadGame();
+        if (saveData == null)
+            return;
+
+        if (GameManager.Instance != null)
+        {
+            saveData.currentChapter = GameManager.Instance.CurrentChapter;
+        }
+
+        string json = JsonUtility.ToJson(saveData, true);
+        File.WriteAllText(savePath, json);
+        Debug.Log("[SaveManager] Game saved");
     }
 
-    /// <summary>
-    /// Tải game từ file
-    /// </summary>
     public void LoadGame()
     {
-        if (System.IO.File.Exists(savePath))
+        if (File.Exists(savePath))
         {
-            string json = System.IO.File.ReadAllText(savePath);
-            currentSave = JsonUtility.FromJson<SaveData>(json);
-            Debug.Log($"[SaveManager] Game loaded from {savePath}");
-            Debug.Log($"[SaveManager] Current chapter: {currentSave.currentChapter}");
+            string json = File.ReadAllText(savePath);
+            saveData = JsonUtility.FromJson<SaveData>(json);
+            Debug.Log("[SaveManager] Game loaded");
         }
         else
         {
-            currentSave = new SaveData();
-            Debug.Log("[SaveManager] No save file found, creating new game");
+            saveData = new SaveData { currentChapter = 1 };
+            Debug.Log("[SaveManager] No save file found, creating new save data");
         }
-    }
-
-    /// <summary>
-    /// Lưu game vào file
-    /// </summary>
-    public void SaveGame()
-    {
-        if (currentSave == null)
-            currentSave = new SaveData();
-        
-        // Update current data
-        if (GameManager.Instance != null)
-        {
-            currentSave.currentChapter = GameManager.Instance.GetCurrentChapter();
-        }
-        
-        string json = JsonUtility.ToJson(currentSave, true);
-        System.IO.File.WriteAllText(savePath, json);
-        
-        Debug.Log($"[SaveManager] Game saved to {savePath}");
-    }
-
-    /// <summary>
-    /// Xóa save file
-    /// </summary>
-    public void DeleteSave()
-    {
-        if (System.IO.File.Exists(savePath))
-        {
-            System.IO.File.Delete(savePath);
-            currentSave = new SaveData();
-            Debug.Log("[SaveManager] Save deleted");
-        }
-    }
-
-    // Getters
-    public SaveData GetCurrentSave() => currentSave;
-    public int GetCurrentChapter() => currentSave.currentChapter;
-    public int GetPlayedTime() => currentSave.playedTime;
-    
-    // Setters
-    public void SetCurrentChapter(int chapter)
-    {
-        currentSave.currentChapter = chapter;
     }
 
     public void CompleteChapter(int chapterNumber)
     {
-        if (chapterNumber >= 0 && chapterNumber < currentSave.completedChapters.Length)
+        if (chapterNumber >= 1 && chapterNumber <= 5)
         {
-            currentSave.completedChapters[chapterNumber] = true;
+            saveData.completedChapters[chapterNumber] = true;
             SaveGame();
-            Debug.Log($"[SaveManager] Chapter {chapterNumber} marked as completed");
         }
-    }
-
-    public bool IsChapterCompleted(int chapterNumber)
-    {
-        if (chapterNumber >= 0 && chapterNumber < currentSave.completedChapters.Length)
-        {
-            return currentSave.completedChapters[chapterNumber];
-        }
-        return false;
     }
 }

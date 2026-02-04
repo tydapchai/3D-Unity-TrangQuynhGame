@@ -1,25 +1,32 @@
 using UnityEngine;
+using System.Collections;
 
-/// <summary>
-/// Audio Manager - Quản lý BGM, SFX
-/// </summary>
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
-    
-    [SerializeField] private AudioSource bgmSource;
-    [SerializeField] private AudioSource sfxSource;
-    
-    [SerializeField] [Range(0f, 1f)] private float bgmVolume = 0.7f;
-    [SerializeField] [Range(0f, 1f)] private float sfxVolume = 0.8f;
 
-    private void Awake()
+    private AudioSource bgmSource;
+    private AudioSource sfxSource;
+
+    [SerializeField] private float bgmVolume = 0.7f;
+    [SerializeField] private float sfxVolume = 0.8f;
+
+    void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log($"[AudioManager] Initialized");
+
+            AudioSource[] sources = GetComponents<AudioSource>();
+            if (sources.Length >= 2)
+            {
+                bgmSource = sources[0];
+                bgmSource.loop = true;
+                sfxSource = sources[1];
+                sfxSource.loop = false;
+                Debug.Log("[AudioManager] Initialized");
+            }
         }
         else
         {
@@ -27,97 +34,40 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    private void Start()
+    public void PlayBGM(AudioClip clip, float fadeInTime = 1f)
     {
-        // Tìm audio sources nếu chưa assign
-        if (bgmSource == null)
-        {
-            bgmSource = gameObject.AddComponent<AudioSource>();
-            bgmSource.loop = true;
-        }
-        
-        if (sfxSource == null)
-        {
-            sfxSource = gameObject.AddComponent<AudioSource>();
-            sfxSource.loop = false;
-        }
-        
-        SetBGMVolume(bgmVolume);
-        SetSFXVolume(sfxVolume);
+        if (bgmSource == null) return;
+        StartCoroutine(FadeBGM(clip, fadeInTime));
     }
 
-    /// <summary>
-    /// Phát nhạc nền
-    /// </summary>
-    public void PlayBGM(AudioClip clip, float fadeInTime = 0.5f)
+    private IEnumerator FadeBGM(AudioClip clip, float fadeTime)
     {
-        if (clip == null)
-        {
-            Debug.LogError("[AudioManager] BGM clip is null");
-            return;
-        }
-        
-        bgmSource.clip = clip;
-        bgmSource.Play();
-        Debug.Log($"[AudioManager] Playing BGM: {clip.name}");
-    }
-
-    /// <summary>
-    /// Dừng nhạc nền với fade out
-    /// </summary>
-    public void StopBGM(float fadeOutTime = 0.5f)
-    {
-        if (fadeOutTime <= 0)
-        {
-            bgmSource.Stop();
-        }
-        else
-        {
-            StartCoroutine(FadeBGMOut(fadeOutTime));
-        }
-    }
-
-    /// <summary>
-    /// Phát sound effect
-    /// </summary>
-    public void PlaySFX(AudioClip clip, float volumeScale = 1f)
-    {
-        if (clip == null)
-        {
-            Debug.LogError("[AudioManager] SFX clip is null");
-            return;
-        }
-        
-        sfxSource.PlayOneShot(clip, volumeScale);
-    }
-
-    public void SetBGMVolume(float volume)
-    {
-        bgmVolume = Mathf.Clamp01(volume);
-        if (bgmSource != null)
-            bgmSource.volume = bgmVolume;
-    }
-
-    public void SetSFXVolume(float volume)
-    {
-        sfxVolume = Mathf.Clamp01(volume);
-        if (sfxSource != null)
-            sfxSource.volume = sfxVolume;
-    }
-
-    private System.Collections.IEnumerator FadeBGMOut(float duration)
-    {
-        float startVolume = bgmSource.volume;
         float elapsedTime = 0f;
-        
-        while (elapsedTime < duration)
+        while (elapsedTime < fadeTime && bgmSource.isPlaying)
         {
             elapsedTime += Time.deltaTime;
-            bgmSource.volume = Mathf.Lerp(startVolume, 0f, elapsedTime / duration);
+            bgmSource.volume = Mathf.Lerp(bgmVolume, 0, elapsedTime / fadeTime);
             yield return null;
         }
-        
-        bgmSource.Stop();
-        bgmSource.volume = startVolume;
+
+        bgmSource.clip = clip;
+        bgmSource.volume = 0;
+        bgmSource.Play();
+
+        elapsedTime = 0f;
+        while (elapsedTime < fadeTime)
+        {
+            elapsedTime += Time.deltaTime;
+            bgmSource.volume = Mathf.Lerp(0, bgmVolume, elapsedTime / fadeTime);
+            yield return null;
+        }
+
+        bgmSource.volume = bgmVolume;
+    }
+
+    public void PlaySFX(AudioClip clip)
+    {
+        if (sfxSource == null) return;
+        sfxSource.PlayOneShot(clip, sfxVolume);
     }
 }
