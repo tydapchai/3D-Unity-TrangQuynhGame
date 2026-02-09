@@ -2,6 +2,22 @@
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
 #
+
+# VSCode
+.vscode/
+
+# Solution files
+*.slnx
+
+# Unity package files accidentally copied to root
+ComputeCommandBuffer.cs
+IBaseCommandBuffer.cs
+IComputeCommandBuffer.cs
+IRasterCommandBuffer.cs
+IUnsafeCommandBuffer.cs
+RasterCommandBuffer.cs
+UnsafeCommandBuffer.cs
+
 .utmp/
 /[Ll]ibrary/
 /[Tt]emp/
