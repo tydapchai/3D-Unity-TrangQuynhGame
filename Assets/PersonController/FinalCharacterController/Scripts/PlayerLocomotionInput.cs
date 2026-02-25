@@ -31,6 +31,8 @@ namespace Tydapchai.FinalCharacterController
         {
             PlayerControls.PlayerLocomotionMap.Disable();
             PlayerControls.PlayerLocomotionMap.RemoveCallbacks(this);
+            PlayerControls.Disable();
+            PlayerControls.Dispose();
         }
 
         public void OnMovement(InputAction.CallbackContext context)
