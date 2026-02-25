@@ -20,6 +20,5 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Chapters/Chap01_Lighting.unity
     guid: c5abbe5d8dde8064ab2e479127702d10
-  m_configObjects:
-    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
